@@ -1,11 +1,31 @@
-class DeiviTechAssistant {
+class DeiviTechAI {
     constructor() {
         this.isListening = false;
         this.isSpeaking = false;
+        this.isProcessing = false;
         this.recognition = null;
         this.voices = [];
-        this.currentProvider = 'local';
-        this.isProcessing = false;
+        this.currentProvider = 'huggingface';
+        
+        // API Configuration - Using free tiers
+        this.apiConfig = {
+            huggingface: {
+                url: 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
+                headers: {}
+            },
+            cohere: {
+                url: 'https://api.cohere.ai/v1/generate',
+                headers: {}
+            },
+            groq: {
+                url: 'https://api.groq.com/openai/v1/chat/completions',
+                headers: {}
+            },
+            together: {
+                url: 'https://api.together.xyz/inference',
+                headers: {}
+            }
+        };
         
         this.init();
     }
@@ -15,7 +35,7 @@ class DeiviTechAssistant {
         this.setupSpeechRecognition();
         this.setupVoices();
         this.setupEventListeners();
-        this.addWelcomeMessage();
+        this.updateStatus('Sistema iniciado', 'ready');
     }
 
     setupElements() {
@@ -23,67 +43,74 @@ class DeiviTechAssistant {
         this.textInput = document.getElementById('textInput');
         this.sendButton = document.getElementById('sendButton');
         this.chatMessages = document.getElementById('chatMessages');
-        this.status = document.getElementById('status');
+        this.voiceStatus = document.getElementById('voiceStatus');
+        this.statusIndicator = document.getElementById('statusIndicator');
+        this.statusText = document.getElementById('statusText');
+        this.statusDot = this.statusIndicator.querySelector('.status-dot');
+        
+        // Settings
+        this.settingsPanel = document.getElementById('settingsPanel');
+        this.settingsToggle = document.getElementById('settingsToggle');
+        this.closeSettings = document.getElementById('closeSettings');
         this.aiProvider = document.getElementById('aiProvider');
         this.voiceSelect = document.getElementById('voiceSelect');
         this.speechRate = document.getElementById('speechRate');
         this.rateValue = document.getElementById('rateValue');
     }
 
-    addWelcomeMessage() {
-        this.addMessage('Olá! Eu sou o DeiviTech, seu assistente especializado em tecnologia. Como posso ajudar?', 'bot');
-    }
-
     setupSpeechRecognition() {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            this.recognition = new SpeechRecognition();
-            
-            this.recognition.continuous = false;
-            this.recognition.interimResults = false;
-            this.recognition.lang = 'pt-BR';
-            
-            this.recognition.onstart = () => {
-                this.isListening = true;
-                this.micButton.classList.add('recording');
-                this.updateStatus('Ouvindo...', 'listening');
-            };
-            
-            this.recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript.trim();
-                if (transcript) {
-                    this.stopListening();
-                    this.processUserInput(transcript);
-                }
-            };
-            
-            this.recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                this.stopListening();
-                let errorMsg = 'Erro no reconhecimento de voz';
-                
-                switch(event.error) {
-                    case 'no-speech':
-                        errorMsg = 'Nenhuma fala detectada. Tente novamente.';
-                        break;
-                    case 'not-allowed':
-                        errorMsg = 'Permissão negada para usar o microfone.';
-                        break;
-                    case 'network':
-                        errorMsg = 'Erro de rede no reconhecimento de voz.';
-                        break;
-                }
-                
-                this.updateStatus(errorMsg);
-            };
-            
-            this.recognition.onend = () => {
-                this.stopListening();
-            };
-        } else {
+        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            this.updateStatus('Reconhecimento de voz não suportado', 'error');
             this.micButton.disabled = true;
-            this.updateStatus('Reconhecimento de voz não suportado');
+            return;
         }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
+        
+        this.recognition.continuous = false;
+        this.recognition.interimResults = false;
+        this.recognition.lang = 'pt-BR';
+        this.recognition.maxAlternatives = 1;
+        
+        this.recognition.onstart = () => {
+            this.isListening = true;
+            this.micButton.classList.add('listening');
+            this.voiceStatus.textContent = 'Ouvindo...';
+            this.updateStatus('Ouvindo', 'listening');
+        };
+        
+        this.recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript.trim();
+            if (transcript) {
+                this.stopListening();
+                this.processInput(transcript);
+            }
+        };
+        
+        this.recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            this.stopListening();
+            
+            let errorMsg = 'Erro no reconhecimento';
+            switch(event.error) {
+                case 'no-speech':
+                    errorMsg = 'Nenhuma fala detectada';
+                    break;
+                case 'not-allowed':
+                    errorMsg = 'Permissão negada';
+                    break;
+                case 'network':
+                    errorMsg = 'Erro de rede';
+                    break;
+            }
+            
+            this.updateStatus(errorMsg, 'error');
+        };
+        
+        this.recognition.onend = () => {
+            this.stopListening();
+        };
     }
 
     setupVoices() {
@@ -110,7 +137,7 @@ class DeiviTechAssistant {
             return;
         }
 
-        // Filtrar e priorizar vozes em português
+        // Priorizar vozes em português
         const portugueseVoices = this.voices.filter(voice => 
             voice.lang.includes('pt') || voice.lang.includes('PT')
         );
@@ -126,13 +153,14 @@ class DeiviTechAssistant {
             this.voiceSelect.appendChild(option);
         });
         
-        // Selecionar automaticamente uma voz portuguesa se disponível
+        // Auto-select primeira voz portuguesa
         if (portugueseVoices.length > 0) {
             this.voiceSelect.selectedIndex = 0;
         }
     }
 
     setupEventListeners() {
+        // Microphone
         this.micButton.addEventListener('click', () => {
             if (this.isListening) {
                 this.stopListening();
@@ -141,10 +169,11 @@ class DeiviTechAssistant {
             }
         });
 
+        // Text input
         this.sendButton.addEventListener('click', () => {
             const text = this.textInput.value.trim();
             if (text) {
-                this.processUserInput(text);
+                this.processInput(text);
                 this.textInput.value = '';
             }
         });
@@ -155,21 +184,29 @@ class DeiviTechAssistant {
             }
         });
 
+        // Settings
+        this.settingsToggle.addEventListener('click', () => {
+            this.settingsPanel.classList.add('open');
+        });
+
+        this.closeSettings.addEventListener('click', () => {
+            this.settingsPanel.classList.remove('open');
+        });
+
         this.aiProvider.addEventListener('change', (e) => {
             this.currentProvider = e.target.value;
-            console.log('Provider changed to:', this.currentProvider);
-            this.updateStatus(`Provedor alterado para: ${e.target.options[e.target.selectedIndex].text}`);
+            this.updateStatus(`Provedor: ${e.target.options[e.target.selectedIndex].text}`, 'ready');
         });
 
         this.speechRate.addEventListener('input', (e) => {
-            this.rateValue.textContent = e.target.value;
+            this.rateValue.textContent = `${e.target.value}x`;
         });
 
-        document.querySelectorAll('.suggestion-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const text = btn.getAttribute('data-text');
-                this.processUserInput(text);
-            });
+        // Close settings on outside click
+        document.addEventListener('click', (e) => {
+            if (!this.settingsPanel.contains(e.target) && !this.settingsToggle.contains(e.target)) {
+                this.settingsPanel.classList.remove('open');
+            }
         });
     }
 
@@ -185,163 +222,195 @@ class DeiviTechAssistant {
             this.recognition.start();
         } catch (error) {
             console.error('Error starting recognition:', error);
-            this.updateStatus('Erro ao iniciar reconhecimento');
+            this.updateStatus('Erro ao iniciar gravação', 'error');
         }
     }
 
     stopListening() {
         this.isListening = false;
-        this.micButton.classList.remove('recording');
-        this.updateStatus('Clique no microfone para falar');
+        this.micButton.classList.remove('listening');
+        this.voiceStatus.textContent = 'Clique para falar';
+        this.updateStatus('Pronto', 'ready');
         
         if (this.recognition) {
             this.recognition.stop();
         }
     }
 
-    async processUserInput(text) {
+    async processInput(text) {
         if (this.isProcessing) return;
         
         this.isProcessing = true;
         this.addMessage(text, 'user');
+        this.showTypingIndicator();
         this.updateStatus('Processando...', 'processing');
         
         try {
             const response = await this.getAIResponse(text);
+            this.hideTypingIndicator();
             this.addMessage(response, 'bot');
             this.speak(response);
         } catch (error) {
             console.error('Error processing input:', error);
-            const errorMsg = 'Desculpe, houve um erro ao processar sua mensagem.';
+            this.hideTypingIndicator();
+            const errorMsg = 'Desculpe, ocorreu um erro ao processar sua mensagem.';
             this.addMessage(errorMsg, 'bot');
             this.speak(errorMsg);
         } finally {
             this.isProcessing = false;
+            this.updateStatus('Pronto', 'ready');
         }
     }
 
     async getAIResponse(text) {
-        console.log('Getting AI response for provider:', this.currentProvider);
+        // Sistema prompt mínimo
+        const systemContext = "Você trabalha para DeiviTech e está em um site de tecnologia. Responda de forma natural e conversacional.";
+        const fullPrompt = `${systemContext}\n\nUsuário: ${text}\nAssistente:`;
         
-        switch (this.currentProvider) {
-            case 'openai':
-                return await this.getOpenAIResponse(text);
-            case 'gemini':
-                return await this.getGeminiResponse(text);
-            case 'claude':
-                return await this.getClaudeResponse(text);
-            case 'local':
-            default:
-                return this.getLocalResponse(text);
-        }
-    }
-
-    async getOpenAIResponse(text) {
         try {
-            // Simular resposta do OpenAI (você precisaria de uma API key real)
-            await this.delay(1000); // Simular delay da API
-            return `[OpenAI] Como DeiviTech, posso dizer que ${text.toLowerCase()} é um tópico interessante em tecnologia. O que você gostaria de saber especificamente?`;
+            switch (this.currentProvider) {
+                case 'huggingface':
+                    return await this.callHuggingFaceAPI(fullPrompt);
+                case 'cohere':
+                    return await this.callCohereAPI(fullPrompt);
+                case 'groq':
+                    return await this.callGroqAPI(text, systemContext);
+                case 'together':
+                    return await this.callTogetherAPI(text, systemContext);
+                default:
+                    return await this.callHuggingFaceAPI(fullPrompt);
+            }
         } catch (error) {
-            console.log('OpenAI not available, falling back to local');
-            return this.getLocalResponse(text);
+            console.error('API call failed:', error);
+            // Fallback para resposta local simples
+            return this.generateSimpleResponse(text);
         }
     }
 
-    async getGeminiResponse(text) {
-        try {
-            // Simular resposta do Gemini
-            await this.delay(1200);
-            return `[Gemini] Sobre ${text.toLowerCase()}, posso explicar que na área de tecnologia isso é muito relevante. Quer que eu detalhe mais?`;
-        } catch (error) {
-            console.log('Gemini not available, falling back to local');
-            return this.getLocalResponse(text);
+    async callHuggingFaceAPI(prompt) {
+        const response = await fetch(this.apiConfig.huggingface.url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...this.apiConfig.huggingface.headers
+            },
+            body: JSON.stringify({
+                inputs: prompt,
+                parameters: {
+                    max_new_tokens: 150,
+                    temperature: 0.7,
+                    return_full_text: false
+                }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HuggingFace API error: ${response.status}`);
         }
+
+        const data = await response.json();
+        if (data[0] && data[0].generated_text) {
+            return data[0].generated_text.trim();
+        }
+        
+        throw new Error('Invalid HuggingFace response');
     }
 
-    async getClaudeResponse(text) {
-        try {
-            // Simular resposta do Claude
-            await this.delay(800);
-            return `[Claude] Interessante pergunta sobre ${text.toLowerCase()}! Como especialista em tecnologia, posso ajudar você a entender melhor esse conceito.`;
-        } catch (error) {
-            console.log('Claude not available, falling back to local');
-            return this.getLocalResponse(text);
-        }
+    async callCohereAPI(prompt) {
+        // Cohere free tier might be limited, using fallback
+        throw new Error('Cohere API not configured');
     }
 
-    getLocalResponse(text) {
+    async callGroqAPI(text, systemContext) {
+        // Groq might require API key, using fallback
+        throw new Error('Groq API not configured');
+    }
+
+    async callTogetherAPI(text, systemContext) {
+        // Together AI might require API key, using fallback
+        throw new Error('Together API not configured');
+    }
+
+    generateSimpleResponse(text) {
         const lowerText = text.toLowerCase();
         
-        // Respostas específicas baseadas em palavras-chave
-        if (lowerText.includes('react')) {
-            return 'React é uma biblioteca JavaScript criada pelo Facebook para construir interfaces de usuário. É baseada em componentes e usa Virtual DOM para otimizar a performance.';
+        // Respostas contextuais simples
+        if (lowerText.includes('oi') || lowerText.includes('olá') || lowerText.includes('hello')) {
+            return 'Olá! Como posso ajudar você hoje?';
         }
         
-        if (lowerText.includes('vue')) {
-            return 'Vue.js é um framework JavaScript progressivo. É conhecido por sua facilidade de aprendizado e documentação excelente, sendo uma ótima alternativa ao React.';
+        if (lowerText.includes('obrigado') || lowerText.includes('valeu')) {
+            return 'Por nada! Estou aqui para ajudar.';
+        }
+        
+        if (lowerText.includes('react')) {
+            return 'React é uma biblioteca JavaScript para construir interfaces de usuário. É mantida pelo Meta e muito popular no desenvolvimento web moderno.';
         }
         
         if (lowerText.includes('javascript')) {
-            return 'JavaScript é a linguagem de programação da web. Hoje em dia, é usada tanto no frontend quanto no backend com Node.js, e é uma das linguagens mais populares do mundo.';
+            return 'JavaScript é a linguagem de programação da web. É versátil e pode ser usada tanto no frontend quanto no backend com Node.js.';
         }
         
         if (lowerText.includes('python')) {
-            return 'Python é uma linguagem de alto nível conhecida por sua sintaxe simples. É muito usada em ciência de dados, inteligência artificial, automação e desenvolvimento web.';
+            return 'Python é uma linguagem de programação de alto nível, conhecida por sua sintaxe limpa e legibilidade. É muito usada em ciência de dados e IA.';
         }
         
-        if (lowerText.includes('inteligência artificial') || lowerText.includes('ia')) {
-            return 'Inteligência Artificial é a capacidade de máquinas simularem a inteligência humana. Inclui machine learning, deep learning, processamento de linguagem natural e visão computacional.';
+        if (lowerText.includes('ia') || lowerText.includes('inteligência artificial')) {
+            return 'Inteligência Artificial é um campo fascinante que permite às máquinas simular aspectos da inteligência humana, como aprendizado e tomada de decisões.';
         }
         
-        if (lowerText.includes('machine learning')) {
-            return 'Machine Learning é um subcampo da IA onde sistemas aprendem padrões nos dados sem programação explícita. Existem três tipos: supervisionado, não supervisionado e por reforço.';
-        }
-        
-        if (lowerText.includes('cloud')) {
-            return 'Cloud Computing permite acessar recursos computacionais via internet. Os principais provedores são AWS, Microsoft Azure e Google Cloud Platform.';
-        }
-        
-        if (lowerText.includes('linguagem')) {
-            return 'As linguagens de programação mais populares atualmente são JavaScript, Python, Java, TypeScript, C#, Go e Rust. Para iniciantes, recomendo Python ou JavaScript.';
-        }
-        
-        if (lowerText.includes('como') && lowerText.includes('programar')) {
-            return 'Para começar a programar: 1) Escolha uma linguagem (Python para iniciantes), 2) Pratique em plataformas como Codecademy, 3) Faça projetos pequenos, 4) Use GitHub, 5) Seja consistente!';
-        }
-        
-        // Resposta padrão variada
-        const defaultResponses = [
-            `Interessante pergunta sobre "${text}"! Como DeiviTech, posso ajudar com diversos tópicos de tecnologia. Pode ser mais específico?`,
-            `Sobre "${text}", é um tópico fascinante na tecnologia atual. O que exatamente você gostaria de saber?`,
-            `"${text}" é uma área importante da tecnologia. Posso explicar conceitos específicos ou tirar dúvidas técnicas sobre isso.`
-        ];
-        
-        return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
-    }
-
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        // Resposta genérica personalizada
+        return `Interessante pergunta sobre "${text}". Como assistente do DeiviTech, posso ajudar com diversos tópicos de tecnologia. Pode me dar mais detalhes sobre o que você gostaria de saber?`;
     }
 
     addMessage(text, sender) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
         
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
-        messageContent.textContent = text;
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+        bubbleDiv.textContent = text;
         
-        messageDiv.appendChild(messageContent);
+        messageDiv.appendChild(bubbleDiv);
         this.chatMessages.appendChild(messageDiv);
         
-        setTimeout(() => {
-            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-        }, 100);
+        this.scrollToBottom();
+    }
+
+    showTypingIndicator() {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot typing-message';
+        messageDiv.id = 'typing-indicator';
+        
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+        
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'typing-indicator';
+        
+        for (let i = 0; i < 3; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'typing-dot';
+            typingDiv.appendChild(dot);
+        }
+        
+        bubbleDiv.appendChild(typingDiv);
+        messageDiv.appendChild(bubbleDiv);
+        this.chatMessages.appendChild(messageDiv);
+        
+        this.scrollToBottom();
+    }
+
+    hideTypingIndicator() {
+        const typingIndicator = document.getElementById('typing-indicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
     }
 
     speak(text) {
         if (!('speechSynthesis' in window)) {
-            this.updateStatus('Síntese de voz não suportada');
+            this.updateStatus('Síntese de voz não suportada', 'error');
             return;
         }
 
@@ -366,25 +435,38 @@ class DeiviTechAssistant {
 
         utterance.onend = () => {
             this.isSpeaking = false;
-            this.updateStatus('Conversa terminada. Clique no microfone para continuar.');
+            this.updateStatus('Pronto', 'ready');
         };
 
         utterance.onerror = (event) => {
             console.error('Speech synthesis error:', event);
             this.isSpeaking = false;
-            this.updateStatus('Erro na síntese de voz');
+            this.updateStatus('Erro na síntese de voz', 'error');
         };
 
         speechSynthesis.speak(utterance);
     }
 
-    updateStatus(message, className = '') {
-        this.status.textContent = message;
-        this.status.className = `status ${className}`;
+    updateStatus(message, type = 'ready') {
+        this.statusText.textContent = message;
+        
+        this.statusDot.classList.remove('active', 'error');
+        
+        if (type === 'listening' || type === 'processing' || type === 'speaking') {
+            this.statusDot.classList.add('active');
+        } else if (type === 'error') {
+            this.statusDot.classList.add('error');
+        }
+    }
+
+    scrollToBottom() {
+        setTimeout(() => {
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        }, 100);
     }
 }
 
-// Inicializar quando a página carregar
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new DeiviTechAssistant();
+    new DeiviTechAI();
 });

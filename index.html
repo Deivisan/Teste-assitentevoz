@@ -1,96 +1,40 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-TF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeiviTech - Assistente IA (Beta)</title>
+    <title>DeiviTech - Assistente (Interface Clássica)</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <h1>DeiviTech <span class="beta-tag">Beta</span></h1>
-        <p>Seu assistente de IA especializado em tecnologia.</p>
-    </header>
+    <div class="container">
+        <header>
+            <h1>DeiviTech</h1>
+            <p>Assistente de IA com foco em tecnologia.</p>
+            <div class="status-indicator" id="status-indicator">Offline</div>
+        </header>
 
-    <nav>
-        <button id="tab-assistant">Assistente</button>
-        <button id="tab-chat">Live Chat</button>
-        <button id="tab-suggestions">Sugestões</button>
-        <button id="tab-changelog">Changelog</button>
-    </nav>
-
-    <main>
-        <section id="assistant-section" class="tab-content active">
-            <h2>Interaja com DeiviTech</h2>
-            <div class="chat-container">
-                <div id="chat-box">
-                    <div class="message assistant">Olá! Eu sou o DeiviTech. Como posso ajudar você com tecnologia hoje?</div>
-                </div>
-                <div class="input-area">
-                    <button id="record-button">🎤 Iniciar Gravação</button>
-                    <textarea id="text-input" placeholder="Ou digite sua mensagem..."></textarea>
-                    <button id="send-button">Enviar</button>
-                </div>
+        <main>
+            <div id="chat-box">
+                <!-- Mensagens aparecerão aqui -->
+                <div class="message assistant">Olá! Eu sou o DeiviTech. Clique em "Iniciar Microfone" para conversarmos.</div>
             </div>
-            <div>
-                <h3>Configurações de Voz (TTS)</h3>
-                <label for="voice-select">Escolha uma voz:</label>
-                <select id="voice-select"></select>
-            </div>
-        </section>
 
-        <section id="chat-section" class="tab-content">
-            <h2>Live Chat da Comunidade</h2>
-            <div class="live-chat-container">
-                <div id="live-chat-messages">
-                    <!-- Messages will appear here -->
+            <div class="controls">
+                <div class="voice-settings">
+                    <label for="voice-select">Voz do Assistente:</label>
+                    <select id="voice-select"></select>
                 </div>
-                <div class="live-chat-input">
-                    <input type="text" id="chat-name" placeholder="Seu nome">
-                    <input type="text" id="chat-message" placeholder="Digite sua mensagem...">
-                    <button id="send-chat-message">Enviar</button>
-                </div>
-                <p><small>As mensagens do Live Chat são salvas localmente no seu navegador usando localStorage. Elas não são compartilhadas em tempo real com outros usuários em diferentes dispositivos/navegadores devido às limitações do GitHub Pages.</small></p>
+                <button id="mic-button">🎤 Iniciar Microfone</button>
             </div>
-        </section>
+             <textarea id="debug-transcript" rows="3" placeholder="Transcrição em tempo real (para debug)..." readonly></textarea>
+        </main>
 
-        <section id="suggestions-section" class="tab-content">
-            <h2>Sugestões e Melhorias</h2>
-            <p>Adoraria ouvir suas ideias para melhorar o DeiviTech!</p>
-            <form id="suggestion-form">
-                <textarea id="suggestion-text" placeholder="Digite sua sugestão aqui..." rows="5" required></textarea>
-                <button type="submit">Enviar Sugestão (simulado)</button>
-            </form>
-            <p>Ou envie suas sugestões diretamente para o meu WhatsApp: <a href="https://wa.me/SEUNUMEROAQUI" target="_blank">Entrar em contato via WhatsApp</a> (substitua SEUNUMEROAQUI pelo seu número com código do país, ex: 55119XXXXXXXX).</p>
-            <p><small>O envio de sugestões por este formulário é simulado. Use o WhatsApp para contato direto.</small></p>
-        </section>
-
-        <section id="changelog-section" class="tab-content">
-            <h2>Changelog</h2>
-            <div id="changelog-content">
-                <h3>Versão 0.1 Beta (10/06/2025)</h3>
-                <ul>
-                    <li>Lançamento inicial do DeiviTech.</li>
-                    <li>Interface básica com assistente de voz (TTS/STT via Web Speech API).</li>
-                    <li>Integração com Google AI Studio para respostas do assistente.</li>
-                    <li>Adicionada aba de "Live Chat" (com persistência local via localStorage).</li>
-                    <li>Adicionada aba de "Sugestões".</li>
-                    <li>Adicionada aba de "Changelog".</li>
-                    <li>Estilização inicial e layout responsivo.</li>
-                    <li>Nome do assistente: DeiviTech, com foco em tecnologia.</li>
-                    <li>Botão de gravação único para iniciar/parar.</li>
-                    <li>Indicador "Beta".</li>
-                </ul>
-                <!-- Adicionar futuras versões aqui -->
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <p>&copy; 2025 Deivisan. Projeto DeiviTech.</p>
-    </footer>
-
+        <footer>
+            <p>&copy; 2025 Deivisan. Projeto DeiviTech.</p>
+        </footer>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

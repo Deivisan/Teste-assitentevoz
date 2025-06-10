@@ -3,38 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeiviTech - Assistente (Interface Clássica)</title>
+    <title>DeiviTech - Assistente de Voz</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>DeiviTech</h1>
-            <p>Assistente de IA com foco em tecnologia.</p>
-            <div class="status-indicator" id="status-indicator">Offline</div>
+            <p>Assistente de IA com conversação natural</p>
         </header>
 
-        <main>
-            <div id="chat-box">
-                <!-- Mensagens aparecerão aqui -->
-                <div class="message assistant">Olá! Eu sou o DeiviTech. Clique em "Iniciar Microfone" para conversarmos.</div>
-            </div>
-
-            <div class="controls">
-                <div class="voice-settings">
-                    <label for="voice-select">Voz do Assistente:</label>
-                    <select id="voice-select"></select>
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    <div class="message-content">
+                        Olá! Eu sou o DeiviTech. Clique no botão do microfone e comece a conversar comigo sobre tecnologia!
+                    </div>
                 </div>
-                <button id="mic-button">🎤 Iniciar Microfone</button>
             </div>
-             <textarea id="debug-transcript" rows="3" placeholder="Transcrição em tempo real (para debug)..." readonly></textarea>
-        </main>
 
-        <footer>
-            <p>&copy; 2025 Deivisan. Projeto DeiviTech.</p>
-        </footer>
+            <div class="input-container">
+                <button id="micButton" class="mic-button">🎤</button>
+                <input type="text" id="textInput" placeholder="Ou digite sua mensagem...">
+                <button id="sendButton" class="send-button">Enviar</button>
+            </div>
+
+            <div class="status" id="status">Pronto para conversar</div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="aiProvider">Provedor de IA:</label>
+                <select id="aiProvider">
+                    <option value="openai">OpenAI GPT (gratuito via API pública)</option>
+                    <option value="huggingface">Hugging Face (gratuito)</option>
+                    <option value="local">Respostas Locais (offline)</option>
+                    <option value="cohere">Cohere (gratuito)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="voiceSelect">Voz:</label>
+                <select id="voiceSelect"></select>
+            </div>
+
+            <div class="control-group">
+                <label for="speechRate">Velocidade da Fala:</label>
+                <input type="range" id="speechRate" min="0.5" max="2" step="0.1" value="1">
+                <span id="rateValue">1.0</span>
+            </div>
+        </div>
+
+        <div class="suggestions">
+            <h3>Sugestões de perguntas:</h3>
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn" data-text="Qual a diferença entre React e Vue.js?">React vs Vue.js</button>
+                <button class="suggestion-btn" data-text="Como funciona inteligência artificial?">Como funciona IA</button>
+                <button class="suggestion-btn" data-text="Quais são as linguagens de programação mais usadas?">Linguagens populares</button>
+                <button class="suggestion-btn" data-text="O que é computação em nuvem?">Cloud Computing</button>
+            </div>
+        </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

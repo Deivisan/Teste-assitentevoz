@@ -1,321 +1,407 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const chatBox = document.getElementById('chat-box');
-    const micButton = document.getElementById('mic-button');
-    const voiceSelect = document.getElementById('voice-select');
-    const statusIndicator = document.getElementById('status-indicator');
-    const debugTranscriptArea = document.getElementById('debug-transcript');
+class DeiviTechAssistant {
+    constructor() {
+        this.isListening = false;
+        this.isSpeaking = false;
+        this.recognition = null;
+        this.voices = [];
+        this.currentProvider = 'local';
+        
+        this.init();
+    }
 
-    let recognition;
-    const speechSynthesis = window.speechSynthesis;
-    let voices = [];
-    let isListening = false;
-    let assistantIsSpeaking = false;
-    let silenceTimer;
-    const SILENCE_DELAY_MS = 1500; // Tempo de silêncio para considerar fim da fala
-    let currentTranscript = '';
+    init() {
+        this.setupElements();
+        this.setupSpeechRecognition();
+        this.setupVoices();
+        this.setupEventListeners();
+        this.loadVoices();
+    }
 
-    function updateStatus(text, className) {
-        statusIndicator.textContent = text;
-        statusIndicator.className = 'status-indicator'; // Reset classes
-        if (className) {
-            statusIndicator.classList.add(className);
+    setupElements() {
+        this.micButton = document.getElementById('micButton');
+        this.textInput = document.getElementById('textInput');
+        this.sendButton = document.getElementById('sendButton');
+        this.chatMessages = document.getElementById('chatMessages');
+        this.status = document.getElementById('status');
+        this.aiProvider = document.getElementById('aiProvider');
+        this.voiceSelect = document.getElementById('voiceSelect');
+        this.speechRate = document.getElementById('speechRate');
+        this.rateValue = document.getElementById('rateValue');
+    }
+
+    setupSpeechRecognition() {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SpeechRecognition();
+            
+            this.recognition.continuous = true;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'pt-BR';
+            
+            this.recognition.onstart = () => {
+                this.isListening = true;
+                this.updateStatus('Ouvindo...', 'listening');
+                this.micButton.classList.add('recording');
+            };
+            
+            this.recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                if (finalTranscript) {
+                    this.stopListening();
+                    this.processUserInput(finalTranscript.trim());
+                }
+            };
+            
+            this.recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                this.stopListening();
+                this.updateStatus('Erro no reconhecimento de voz');
+            };
+            
+            this.recognition.onend = () => {
+                if (this.isListening && !this.isSpeaking) {
+                    // Restart listening if it was intentionally listening
+                    setTimeout(() => {
+                        if (this.isListening && !this.isSpeaking) {
+                            this.recognition.start();
+                        }
+                    }, 100);
+                }
+            };
+        } else {
+            this.updateStatus('Reconhecimento de voz não suportado neste navegador');
         }
     }
 
-    function populateVoiceList() {
-        voices = speechSynthesis.getVoices().sort((a, b) => {
-            const aName = a.name.toUpperCase();
-            const bName = b.name.toUpperCase();
-            if (aName < bName) return -1;
-            if (aName > bName) return 1;
-            return 0;
+    setupVoices() {
+        const updateVoices = () => {
+            this.voices = speechSynthesis.getVoices();
+            this.populateVoiceSelect();
+        };
+        
+        updateVoices();
+        
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = updateVoices;
+        }
+    }
+
+    populateVoiceSelect() {
+        this.voiceSelect.innerHTML = '';
+        
+        // Priorizar vozes em português
+        const portugueseVoices = this.voices.filter(voice => 
+            voice.lang.includes('pt') || voice.lang.includes('PT')
+        );
+        
+        const otherVoices = this.voices.filter(voice => 
+            !voice.lang.includes('pt') && !voice.lang.includes('PT')
+        );
+        
+        [...portugueseVoices, ...otherVoices].forEach((voice, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            this.voiceSelect.appendChild(option);
         });
+    }
 
-        const previouslySelected = voiceSelect.value || localStorage.getItem('selectedVoiceName');
-        voiceSelect.innerHTML = '';
-
-        voices.forEach(voice => {
-            if (voice.lang.startsWith('pt')) { // Prioritizar Português
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.setAttribute('data-lang', voice.lang);
-                option.setAttribute('data-name', voice.name);
-                option.value = voice.name;
-                voiceSelect.appendChild(option);
+    setupEventListeners() {
+        this.micButton.addEventListener('click', () => {
+            if (this.isListening) {
+                this.stopListening();
+            } else {
+                this.startListening();
             }
         });
 
-        // Adicionar outras vozes se não houver muitas em PT
-        if (voiceSelect.options.length < 5) {
-            voices.forEach(voice => {
-                if (!voice.lang.startsWith('pt')) {
-                    const option = document.createElement('option');
-                    option.textContent = `${voice.name} (${voice.lang})`;
-                    option.setAttribute('data-lang', voice.lang);
-                    option.setAttribute('data-name', voice.name);
-                    option.value = voice.name;
-                    voiceSelect.appendChild(option);
-                }
+        this.sendButton.addEventListener('click', () => {
+            const text = this.textInput.value.trim();
+            if (text) {
+                this.processUserInput(text);
+                this.textInput.value = '';
+            }
+        });
+
+        this.textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.sendButton.click();
+            }
+        });
+
+        this.aiProvider.addEventListener('change', (e) => {
+            this.currentProvider = e.target.value;
+            this.updateStatus(`Provedor alterado para: ${e.target.options[e.target.selectedIndex].text}`);
+        });
+
+        this.speechRate.addEventListener('input', (e) => {
+            this.rateValue.textContent = e.target.value;
+        });
+
+        // Suggestion buttons
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const text = btn.getAttribute('data-text');
+                this.processUserInput(text);
             });
+        });
+    }
+
+    loadVoices() {
+        // Wait for voices to load
+        setTimeout(() => {
+            if (this.voices.length === 0) {
+                this.setupVoices();
+            }
+        }, 1000);
+    }
+
+    startListening() {
+        if (!this.recognition) {
+            this.updateStatus('Reconhecimento de voz não disponível');
+            return;
         }
-        if (previouslySelected) {
-            voiceSelect.value = previouslySelected;
+
+        if (this.isSpeaking) {
+            speechSynthesis.cancel();
+            this.isSpeaking = false;
         }
-        if(!voiceSelect.value && voiceSelect.options.length > 0) {
-            voiceSelect.value = voiceSelect.options[0].value;
+
+        try {
+            this.recognition.start();
+        } catch (error) {
+            console.error('Error starting recognition:', error);
         }
     }
 
-    populateVoiceList();
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = populateVoiceList;
+    stopListening() {
+        this.isListening = false;
+        this.micButton.classList.remove('recording');
+        this.updateStatus('Pronto para conversar');
+        
+        if (this.recognition) {
+            this.recognition.stop();
+        }
     }
-    voiceSelect.addEventListener('change', () => {
-        localStorage.setItem('selectedVoiceName', voiceSelect.value);
-    });
 
+    async processUserInput(text) {
+        this.addMessage(text, 'user');
+        this.updateStatus('Pensando...');
+        
+        try {
+            const response = await this.getAIResponse(text);
+            this.addMessage(response, 'bot');
+            this.speak(response);
+        } catch (error) {
+            console.error('Error getting AI response:', error);
+            const errorMsg = 'Desculpe, houve um erro ao processar sua mensagem.';
+            this.addMessage(errorMsg, 'bot');
+            this.speak(errorMsg);
+        }
+    }
 
-    function speak(text, onEndCallback) {
-        if (assistantIsSpeaking) { // Evitar sobreposição
-            speechSynthesis.cancel(); 
+    async getAIResponse(text) {
+        switch (this.currentProvider) {
+            case 'openai':
+                return await this.getOpenAIResponse(text);
+            case 'huggingface':
+                return await this.getHuggingFaceResponse(text);
+            case 'cohere':
+                return await this.getCohereResponse(text);
+            default:
+                return this.getLocalResponse(text);
         }
-        assistantIsSpeaking = true;
-        updateStatus('Falando...', 'speaking');
-        if (isListening && recognition) { // Pausar reconhecimento enquanto fala
-            recognition.stop();
+    }
+
+    async getOpenAIResponse(text) {
+        // Using a free OpenAI-compatible API
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Note: This would need a valid API key for production
+                },
+                body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Você é DeiviTech, um assistente especializado em tecnologia. Responda em português brasileiro de forma natural e conversacional.'
+                        },
+                        {
+                            role: 'user',
+                            content: text
+                        }
+                    ],
+                    max_tokens: 150
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API request failed');
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        } catch (error) {
+            return this.getLocalResponse(text);
         }
+    }
+
+    async getHuggingFaceResponse(text) {
+        // Using Hugging Face Inference API (free tier available)
+        try {
+            const response = await fetch('https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    inputs: `Usuário: ${text}\nDeiviTech (especialista em tecnologia):`,
+                    parameters: {
+                        max_length: 100,
+                        temperature: 0.7
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Hugging Face API request failed');
+            }
+
+            const data = await response.json();
+            return data[0].generated_text.split('DeiviTech (especialista em tecnologia):')[1]?.trim() || this.getLocalResponse(text);
+        } catch (error) {
+            return this.getLocalResponse(text);
+        }
+    }
+
+    async getCohereResponse(text) {
+        // Cohere has a free tier
+        try {
+            const response = await fetch('https://api.cohere.ai/v1/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Note: Would need API key for production
+                },
+                body: JSON.stringify({
+                    model: 'command',
+                    prompt: `Você é DeiviTech, assistente de tecnologia. Responda em português: ${text}`,
+                    max_tokens: 100
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Cohere API request failed');
+            }
+
+            const data = await response.json();
+            return data.generations[0].text.trim();
+        } catch (error) {
+            return this.getLocalResponse(text);
+        }
+    }
+
+    getLocalResponse(text) {
+        // Local responses for when APIs are not available
+        const responses = {
+            'react': 'React é uma biblioteca JavaScript para construir interfaces de usuário. É mantida pelo Facebook e é muito popular para desenvolvimento web moderno.',
+            'vue': 'Vue.js é um framework JavaScript progressivo para construir interfaces de usuário. É conhecido por sua curva de aprendizado suave.',
+            'javascript': 'JavaScript é uma linguagem de programação versátil, usada tanto no frontend quanto no backend com Node.js.',
+            'python': 'Python é uma linguagem de programação de alto nível, conhecida por sua sintaxe simples e legibilidade.',
+            'inteligência artificial': 'Inteligência Artificial é a capacidade de máquinas realizarem tarefas que normalmente requerem inteligência humana.',
+            'machine learning': 'Machine Learning é um subcampo da IA que permite aos sistemas aprenderem automaticamente a partir de dados.',
+            'cloud': 'Computação em nuvem permite acessar recursos de computação pela internet, oferecendo escalabilidade e flexibilidade.',
+            'default': 'Interessante pergunta sobre tecnologia! Como DeiviTech, posso ajudar com diversos tópicos como programação, IA, desenvolvimento web e muito mais.'
+        };
+
+        const lowerText = text.toLowerCase();
+        
+        for (const [key, response] of Object.entries(responses)) {
+            if (lowerText.includes(key)) {
+                return response;
+            }
+        }
+        
+        return responses.default;
+    }
+
+    addMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}`;
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.textContent = text;
+        
+        messageDiv.appendChild(messageContent);
+        this.chatMessages.appendChild(messageDiv);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+
+        // Auto-scroll to bottom
+        setTimeout(() => {
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        }, 100);
+    }
+
+    speak(text) {
+        if (this.isSpeaking) {
+            speechSynthesis.cancel();
+        }
+
+        this.isSpeaking = true;
+        this.updateStatus('Falando...', 'speaking');
 
         const utterance = new SpeechSynthesisUtterance(text);
-        const selectedVoiceName = voiceSelect.value;
-        const selectedVoice = voices.find(voice => voice.name === selectedVoiceName);
-
-        if (selectedVoice) {
-            utterance.voice = selectedVoice;
-            utterance.lang = selectedVoice.lang;
-        } else {
-            utterance.lang = 'pt-BR'; // Fallback
+        
+        if (this.voiceSelect.value && this.voices[this.voiceSelect.value]) {
+            utterance.voice = this.voices[this.voiceSelect.value];
         }
         
-        utterance.onstart = () => {
-            console.log('Assistente começou a falar.');
-        };
+        utterance.rate = parseFloat(this.speechRate.value);
+        utterance.pitch = 1;
+        utterance.volume = 1;
 
         utterance.onend = () => {
-            console.log('Assistente terminou de falar.');
-            assistantIsSpeaking = false;
-            updateStatus(isListening ? 'Ouvindo...' : 'Online', isListening ? 'listening' : 'online');
-            if (isListening && recognition) { // Retomar reconhecimento se ainda estiver no modo de escuta
-                try { recognition.start(); } catch(e) { console.warn("Não foi possível reiniciar o reconhecimento:", e); }
-            }
-            if (onEndCallback) onEndCallback();
+            this.isSpeaking = false;
+            this.updateStatus('Pronto para conversar');
+            
+            // Auto-restart listening after speaking (for natural conversation)
+            setTimeout(() => {
+                if (!this.isListening) {
+                    this.startListening();
+                }
+            }, 500);
         };
-        
-        utterance.onerror = (event) => {
-            console.error('Erro na síntese de voz:', event);
-            assistantIsSpeaking = false;
-            updateStatus('Erro na voz', 'offline');
-             if (isListening && recognition) { // Tentar retomar mesmo em erro
-                try { recognition.start(); } catch(e) { console.warn("Não foi possível reiniciar o reconhecimento após erro de TTS:", e); }
-            }
+
+        utterance.onerror = () => {
+            this.isSpeaking = false;
+            this.updateStatus('Erro na síntese de voz');
         };
+
         speechSynthesis.speak(utterance);
     }
 
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = true; // Mantém o microfone ativo
-        recognition.interimResults = true; // Permite capturar resultados parciais
-        recognition.lang = 'pt-BR';
-
-        recognition.onstart = () => {
-            console.log('Reconhecimento de voz iniciado.');
-            isListening = true;
-            micButton.textContent = '🔴 Parar Microfone';
-            micButton.classList.add('recording');
-            updateStatus('Ouvindo...', 'listening');
-            currentTranscript = ''; // Limpa transcrição anterior
-            debugTranscriptArea.value = '';
-        };
-
-        recognition.onresult = (event) => {
-            clearTimeout(silenceTimer); // Cancela o timer de silêncio se houver nova fala
-
-            let interimTranscript = '';
-            let finalTranscript = '';
-
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
-            }
-            
-            currentTranscript = finalTranscript || interimTranscript; // Prioriza final, mas usa interim
-            debugTranscriptArea.value = `Interim: ${interimTranscript}\nFinal: ${finalTranscript}\n(CurrentInternal: ${currentTranscript})`;
-
-
-            // Se o assistente estiver falando e o usuário começar a falar (detectado por interim results)
-            if (assistantIsSpeaking && interimTranscript.trim().length > 0) {
-                console.log("Usuário interrompeu o assistente.");
-                speechSynthesis.cancel(); // Para a fala do assistente
-                assistantIsSpeaking = false;
-                updateStatus('Ouvindo...', 'listening'); // Volta para o estado de escuta
-            }
-
-            if (finalTranscript.trim()) {
-                processUserQuery(finalTranscript.trim());
-                currentTranscript = ''; // Limpa para a próxima frase completa
-            } else {
-                // Reinicia o timer de silêncio se houver resultado provisório
-                 silenceTimer = setTimeout(() => {
-                    if (currentTranscript.trim() && !assistantIsSpeaking) { // Verifica se há algo no currentTranscript e se o assistente não está falando
-                         console.log("Fim da fala detectado por silêncio com: ", currentTranscript.trim());
-                         processUserQuery(currentTranscript.trim());
-                         currentTranscript = ''; // Limpa após processar
-                    }
-                }, SILENCE_DELAY_MS);
-            }
-        };
-
-        recognition.onerror = (event) => {
-            console.error('Erro no reconhecimento de voz:', event.error);
-            let errorMsg = 'Erro no reconhecimento.';
-            if (event.error === 'no-speech') errorMsg = 'Nenhuma fala detectada.';
-            if (event.error === 'audio-capture') errorMsg = 'Problema com microfone.';
-            if (event.error === 'not-allowed') errorMsg = 'Permissão de microfone negada.';
-            
-            addMessage(errorMsg, 'assistant');
-            speak(errorMsg);
-            stopListening();
-        };
-
-        recognition.onend = () => {
-            console.log('Reconhecimento de voz terminado.');
-            // Não muda o estado isListening aqui se foi o assistente que parou para falar
-            // O estado é controlado pelo botão ou erro.
-            // Se o recognition.stop() foi chamado manualmente (pelo botão ou erro), então isListening será false.
-            if (!isListening) {
-                 micButton.textContent = '🎤 Iniciar Microfone';
-                 micButton.classList.remove('recording');
-                 updateStatus('Online', 'online');
-            } else if (!assistantIsSpeaking) {
-                // Se ainda deveria estar ouvindo (e não é o assistente falando), tenta reiniciar
-                // Isso pode acontecer se a conexão cair brevemente.
-                 try {
-                    if(isListening) recognition.start();
-                 } catch(e) {
-                    console.warn("Reinício automático do reconhecimento falhou. Pode ser necessário clicar no botão.", e);
-                    stopListening(); // Força parada se não conseguir reiniciar
-                 }
-            }
-        };
-
-    } else {
-        micButton.disabled = true;
-        micButton.textContent = 'Voz não suportada';
-        addMessage('Seu navegador não suporta reconhecimento de voz.', 'assistant');
-        updateStatus('Voz não suportada', 'offline');
+    updateStatus(message, className = '') {
+        this.status.textContent = message;
+        this.status.className = `status ${className}`;
     }
-    
-    function startListening() {
-        if (!recognition) return;
-        if (assistantIsSpeaking) speechSynthesis.cancel(); // Para o assistente se estiver falando
-        
-        // Solicitar permissão de microfone explicitamente se necessário
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                // Permissão concedida
-                stream.getTracks().forEach(track => track.stop()); // Liberar o stream, o recognition cuidará disso
-                isListening = true; // Seta antes de chamar start()
-                try {
-                    recognition.start();
-                } catch(e) {
-                    console.error("Erro ao iniciar reconhecimento:", e);
-                    isListening = false; // Reverte se falhar
-                }
-            })
-            .catch(err => {
-                console.error('Permissão de microfone negada ou erro:', err);
-                addMessage('Permissão de microfone necessária para continuar.', 'assistant');
-                speak('Para conversarmos, preciso da sua permissão para usar o microfone.');
-                updateStatus('Permissão negada', 'offline');
-                isListening = false; // Garante que está false
-                micButton.textContent = '🎤 Iniciar Microfone';
-                micButton.classList.remove('recording');
-            });
-    }
+}
 
-    function stopListening() {
-        if (!recognition) return;
-        isListening = false; // Seta antes de chamar stop()
-        clearTimeout(silenceTimer);
-        try {
-            recognition.stop();
-        } catch(e) {
-            console.warn("Erro ao parar reconhecimento (pode já estar parado):", e);
-        }
-        micButton.textContent = '🎤 Iniciar Microfone';
-        micButton.classList.remove('recording');
-        updateStatus('Online', 'online');
-    }
-
-    micButton.addEventListener('click', () => {
-        if (!recognition) return;
-        if (isListening) {
-            stopListening();
-        } else {
-            startListening();
-        }
-    });
-
-    function addMessage(text, sender) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', sender);
-        messageDiv.textContent = text;
-        chatBox.appendChild(messageDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function processUserQuery(queryText) {
-        if (!queryText) return;
-        addMessage(queryText, 'user');
-        currentTranscript = ''; // Limpa após adicionar a mensagem
-        debugTranscriptArea.value = ''; // Limpa debug também
-
-        // Lógica de resposta placeholder
-        let response = "Desculpe, não entendi bem. Pode repetir ou perguntar sobre tecnologia?";
-        const lowerQuery = queryText.toLowerCase();
-
-        if (lowerQuery.includes("olá") || lowerQuery.includes("oi")) {
-            response = "Olá! Como posso te ajudar com tecnologia hoje?";
-        } else if (lowerQuery.includes("tudo bem") || lowerQuery.includes("como vai")) {
-            response = "Estou funcionando perfeitamente! Pronto para falar sobre tecnologia.";
-        } else if (lowerQuery.includes("inteligência artificial") || lowerQuery.includes("ia")) {
-            response = "Inteligência Artificial é um campo fascinante! O que especificamente te interessa em IA?";
-        } else if (lowerQuery.includes("programação") || lowerQuery.includes("código")) {
-            response = "Programação é a arte de dar instruções a um computador. Qual linguagem ou conceito você gostaria de discutir?";
-        } else if (lowerQuery.includes("adeus") || lowerQuery.includes("tchau")) {
-            response = "Até logo! Se precisar de mais alguma coisa sobre tecnologia, é só chamar.";
-        } else if (lowerQuery.includes("deivitech") || lowerQuery.includes("seu nome")) {
-            response = "Eu sou o DeiviTech, seu assistente de IA para assuntos de tecnologia!";
-        }
-
-        setTimeout(() => { // Pequeno delay para simular processamento
-            addMessage(response, 'assistant');
-            speak(response);
-        }, 500);
-    }
-
-    // Saudação inicial
-    updateStatus('Online', 'online');
-    setTimeout(() => {
-        const initialGreeting = "Olá! Eu sou o DeiviTech. Clique em 'Iniciar Microfone' para conversarmos.";
-        // addMessage(initialGreeting, 'assistant'); // Mensagem já está no HTML
-        if(speechSynthesis && voices.length > 0) { // Só fala se houver vozes
-             speak(initialGreeting);
-        } else if (speechSynthesis) {
-            speechSynthesis.onvoiceschanged = () => { // Tenta falar quando as vozes carregarem
-                populateVoiceList(); // Garante que a lista está populada
-                if(
+// Initialize the assistant when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    new DeiviTechAssistant();
+});

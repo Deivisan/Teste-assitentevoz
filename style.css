@@ -213,25 +213,6 @@ header p {
     border-color: #667eea;
 }
 
-.browser-info {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-    font-size: 14px;
-}
-
-.browser-info h4 {
-    color: #495057;
-    margin-bottom: 10px;
-}
-
-.browser-info p {
-    margin: 5px 0;
-    color: #6c757d;
-}
-
 .suggestions {
     background: white;
     padding: 20px;
@@ -267,7 +248,6 @@ header p {
     transform: translateY(-2px);
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
     .container {
         padding: 10px;

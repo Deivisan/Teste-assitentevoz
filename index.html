@@ -1,347 +1,95 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-TF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎤 Assistente de Voz - Teste Completo</title>
+    <title>DeiviTech - Assistente IA (Beta)</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4285f4">
-    <meta name="description" content="Assistente virtual com reconhecimento de voz e IA">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎤%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Modal de Boas-vindas e Permissão -->
-    <div id="welcomeModal" class="modal show">
-        <div class="modal-content welcome-content">
-            <div class="welcome-header">
-                <h1>🎤 Bem-vindo ao Assistente de Voz!</h1>
-                <p>Seu assistente inteligente com Google Gemini AI</p>
-            </div>
-            
-            <div class="welcome-steps">
-                <div class="step">
-                    <span class="step-icon">🎙️</span>
-                    <div class="step-content">
-                        <h3>Permissão de Microfone</h3>
-                        <p>Precisamos acessar seu microfone para conversação por voz</p>
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <span class="step-icon">🤖</span>
-                    <div class="step-content">
-                        <h3>IA Integrada</h3>
-                        <p>Google Gemini AI para respostas inteligentes</p>
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <span class="step-icon">🆓</span>
-                    <div class="step-content">
-                        <h3>Teste Gratuito</h3>
-                        <p>Use sem API key ou configure sua própria chave</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="welcome-buttons">
-                <button id="startWithMic" class="btn-primary">
-                    🎤 Iniciar com Microfone
-                </button>
-                <button id="startTextOnly" class="btn-secondary">
-                    💬 Usar Apenas Texto
-                </button>
-                <button id="configurAPI" class="btn-tertiary">
-                    ⚙️ Configurar API Primeiro
-                </button>
-            </div>
-        </div>
-    </div>
+    <header>
+        <h1>DeiviTech <span class="beta-tag">Beta</span></h1>
+        <p>Seu assistente de IA especializado em tecnologia.</p>
+    </header>
 
-    <!-- Container Principal -->
-    <div class="container">
-        <!-- Header com Status -->
-        <header class="header">
-            <div class="logo">
-                <span class="logo-icon">🎤</span>
-                <div class="logo-text">
-                    <h1>Assistente de Voz</h1>
-                    <p>Powered by Gemini AI</p>
-                </div>
-            </div>
-            
-            <div class="status-bar">
-                <div class="status-item">
-                    <span id="micStatus">🔴 Microfone: Desativado</span>
-                </div>
-                <div class="status-item">
-                    <span id="apiStatus">🔴 API: Não configurada</span>
-                </div>
-                <div class="status-item">
-                    <span id="connectionStatus">🟡 Conexão: Verificando...</span>
-                </div>
-            </div>
-        </header>
+    <nav>
+        <button id="tab-assistant">Assistente</button>
+        <button id="tab-chat">Live Chat</button>
+        <button id="tab-suggestions">Sugestões</button>
+        <button id="tab-changelog">Changelog</button>
+    </nav>
 
-        <!-- Área de Chat -->
-        <div class="chat-section">
-            <div class="messages-container">
-                <div id="messages" class="messages">
-                    <div class="message ai-message welcome-message">
-                        <div class="message-avatar">🤖</div>
-                        <div class="message-content">
-                            <div class="message-header">
-                                <strong>Assistente Gemini</strong>
-                                <span class="timestamp">Agora</span>
-                            </div>
-                            <div class="message-text">
-                                Olá! Sou seu assistente virtual inteligente. Configure uma API do Google AI Studio ou teste o modo demo gratuito para começar nossa conversa!
-                            </div>
-                        </div>
-                    </div>
+    <main>
+        <section id="assistant-section" class="tab-content active">
+            <h2>Interaja com DeiviTech</h2>
+            <div class="chat-container">
+                <div id="chat-box">
+                    <div class="message assistant">Olá! Eu sou o DeiviTech. Como posso ajudar você com tecnologia hoje?</div>
                 </div>
-                
-                <!-- Indicador de digitação -->
-                <div id="typingIndicator" class="typing-indicator" style="display: none;">
-                    <div class="message ai-message">
-                        <div class="message-avatar">🤖</div>
-                        <div class="message-content">
-                            <div class="typing-animation">
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </div>
-                        </div>
-                    </div>
+                <div class="input-area">
+                    <button id="record-button">🎤 Iniciar Gravação</button>
+                    <textarea id="text-input" placeholder="Ou digite sua mensagem..."></textarea>
+                    <button id="send-button">Enviar</button>
                 </div>
             </div>
-
-            <!-- Controles de Voz -->
-            <div class="voice-controls">
-                <div class="main-controls">
-                    <button id="startListening" class="voice-btn primary" disabled title="Clique para falar">
-                        <span class="btn-icon">🎤</span>
-                        <span class="btn-text">Falar</span>
-                    </button>
-                    
-                    <button id="stopListening" class="voice-btn danger" disabled title="Parar de ouvir">
-                        <span class="btn-icon">⏹️</span>
-                        <span class="btn-text">Parar</span>
-                    </button>
-                    
-                    <button id="toggleTextMode" class="voice-btn secondary" title="Alternar modo texto">
-                        <span class="btn-icon">💬</span>
-                        <span class="btn-text">Texto</span>
-                    </button>
-                </div>
-                
-                <!-- Input de Texto (oculto inicialmente) -->
-                <div id="textInputArea" class="text-input-area" style="display: none;">
-                    <div class="text-input-container">
-                        <input type="text" id="textInput" placeholder="Digite sua mensagem aqui..." maxlength="500">
-                        <button id="sendText" class="send-btn" title="Enviar mensagem">
-                            <span>📤</span>
-                        </button>
-                    </div>
-                    <div class="text-input-footer">
-                        <span id="charCount">0/500</span>
-                        <span class="input-hint">Enter para enviar</span>
-                    </div>
-                </div>
+            <div>
+                <h3>Configurações de Voz (TTS)</h3>
+                <label for="voice-select">Escolha uma voz:</label>
+                <select id="voice-select"></select>
             </div>
+        </section>
 
-            <!-- Status de Operação -->
-            <div class="operation-status">
-                <div id="currentStatus" class="status-display">
-                    <span class="status-icon">⏳</span>
-                    <span class="status-text">Aguardando configuração...</span>
+        <section id="chat-section" class="tab-content">
+            <h2>Live Chat da Comunidade</h2>
+            <div class="live-chat-container">
+                <div id="live-chat-messages">
+                    <!-- Messages will appear here -->
                 </div>
-                
-                <div class="quick-actions">
-                    <button id="quickTest" class="quick-btn">🧪 Teste Rápido</button>
-                    <button id="clearChat" class="quick-btn">🗑️ Limpar Chat</button>
-                    <button id="downloadChat" class="quick-btn">💾 Salvar Chat</button>
+                <div class="live-chat-input">
+                    <input type="text" id="chat-name" placeholder="Seu nome">
+                    <input type="text" id="chat-message" placeholder="Digite sua mensagem...">
+                    <button id="send-chat-message">Enviar</button>
                 </div>
+                <p><small>As mensagens do Live Chat são salvas localmente no seu navegador usando localStorage. Elas não são compartilhadas em tempo real com outros usuários em diferentes dispositivos/navegadores devido às limitações do GitHub Pages.</small></p>
             </div>
-        </div>
+        </section>
 
-        <!-- Painel de Configurações -->
-        <div class="config-section">
-            <div class="config-header">
-                <h2>⚙️ Configurações</h2>
-                <button id="toggleConfig" class="toggle-btn">Mostrar</button>
+        <section id="suggestions-section" class="tab-content">
+            <h2>Sugestões e Melhorias</h2>
+            <p>Adoraria ouvir suas ideias para melhorar o DeiviTech!</p>
+            <form id="suggestion-form">
+                <textarea id="suggestion-text" placeholder="Digite sua sugestão aqui..." rows="5" required></textarea>
+                <button type="submit">Enviar Sugestão (simulado)</button>
+            </form>
+            <p>Ou envie suas sugestões diretamente para o meu WhatsApp: <a href="https://wa.me/SEUNUMEROAQUI" target="_blank">Entrar em contato via WhatsApp</a> (substitua SEUNUMEROAQUI pelo seu número com código do país, ex: 55119XXXXXXXX).</p>
+            <p><small>O envio de sugestões por este formulário é simulado. Use o WhatsApp para contato direto.</small></p>
+        </section>
+
+        <section id="changelog-section" class="tab-content">
+            <h2>Changelog</h2>
+            <div id="changelog-content">
+                <h3>Versão 0.1 Beta (10/06/2025)</h3>
+                <ul>
+                    <li>Lançamento inicial do DeiviTech.</li>
+                    <li>Interface básica com assistente de voz (TTS/STT via Web Speech API).</li>
+                    <li>Integração com Google AI Studio para respostas do assistente.</li>
+                    <li>Adicionada aba de "Live Chat" (com persistência local via localStorage).</li>
+                    <li>Adicionada aba de "Sugestões".</li>
+                    <li>Adicionada aba de "Changelog".</li>
+                    <li>Estilização inicial e layout responsivo.</li>
+                    <li>Nome do assistente: DeiviTech, com foco em tecnologia.</li>
+                    <li>Botão de gravação único para iniciar/parar.</li>
+                    <li>Indicador "Beta".</li>
+                </ul>
+                <!-- Adicionar futuras versões aqui -->
             </div>
-            
-            <div id="configPanel" class="config-panel" style="display: none;">
-                <!-- Configuração de API -->
-                <div class="config-group">
-                    <h3>🔑 Configuração da API</h3>
-                    <div class="config-row">
-                        <label for="apiProvider">Provedor:</label>
-                        <select id="apiProvider">
-                            <option value="gemini">🔷 Google Gemini (Oficial)</option>
-                            <option value="gemini-demo">🆓 Modo Demo (Gratuito)</option>
-                            <option value="huggingface">🤗 Hugging Face (Público)</option>
-                            <option value="openai">🤖 OpenAI (Opcional)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="config-row">
-                        <label for="apiKey">Chave da API:</label>
-                        <div class="api-input-group">
-                            <input type="password" id="apiKey" placeholder="Cole sua chave aqui (opcional para demo)">
-                            <button id="toggleApiKey" class="toggle-visibility">👁️</button>
-                        </div>
-                    </div>
-                    
-                    <div class="config-row">
-                        <label for="aiModel">Modelo:</label>
-                        <select id="aiModel">
-                            <option value="gemini-1.5-flash">Gemini 1.5 Flash ⚡ (Rápido)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro 🚀 (Avançado)</option>
-                            <option value="gemini-pro">Gemini Pro 📊 (Padrão)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="config-actions">
-                        <button id="saveConfig" class="config-btn primary">💾 Salvar</button>
-                        <button id="testAPI" class="config-btn secondary">🧪 Testar</button>
-                        <button id="getAPIKey" class="config-btn tertiary">🔗 Obter Chave</button>
-                    </div>
-                </div>
+        </section>
+    </main>
 
-                <!-- Configurações de Voz -->
-                <div class="config-group">
-                    <h3>🔊 Configurações de Voz</h3>
-                    <div class="config-row">
-                        <label for="voiceRate">Velocidade:</label>
-                        <div class="slider-group">
-                            <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="0.9">
-                            <span id="rateDisplay">0.9x</span>
-                        </div>
-                    </div>
-                    
-                    <div class="config-row">
-                        <label for="voicePitch">Tom:</label>
-                        <div class="slider-group">
-                            <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" value="1">
-                            <span id="pitchDisplay">1.0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="config-row">
-                        <label for="voiceVolume">Volume:</label>
-                        <div class="slider-group">
-                            <input type="range" id="voiceVolume" min="0" max="1" step="0.1" value="1">
-                            <span id="volumeDisplay">100%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="config-actions">
-                        <button id="testVoice" class="config-btn secondary">🔊 Testar Voz</button>
-                        <button id="resetVoice" class="config-btn tertiary">🔄 Resetar</button>
-                    </div>
-                </div>
-
-                <!-- Configurações Avançadas -->
-                <div class="config-group">
-                    <h3>🔧 Configurações Avançadas</h3>
-                    <div class="config-row">
-                        <label for="language">Idioma:</label>
-                        <select id="language">
-                            <option value="pt-BR">🇧🇷 Português (Brasil)</option>
-                            <option value="en-US">🇺🇸 English (US)</option>
-                            <option value="es-ES">🇪🇸 Español (España)</option>
-                            <option value="fr-FR">🇫🇷 Français (France)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="config-row">
-                        <label>Funcionalidades:</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="autoSpeak" checked>
-                                <span>🔊 Resposta automática por voz</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="soundEffects" checked>
-                                <span>🔔 Efeitos sonoros</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="showTimestamp" checked>
-                                <span>⏰ Mostrar horários</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Área de Ajuda -->
-        <div class="help-section">
-            <div class="help-header">
-                <h2>❓ Ajuda e Informações</h2>
-                <button id="toggleHelp" class="toggle-btn">Mostrar</button>
-            </div>
-            
-            <div id="helpPanel" class="help-panel" style="display: none;">
-                <div class="help-grid">
-                    <div class="help-card">
-                        <h3>🚀 Como Começar</h3>
-                        <ol>
-                            <li>Configure uma API ou use o modo demo</li>
-                            <li>Permita acesso ao microfone</li>
-                            <li>Clique em "Falar" e comece a conversar</li>
-                        </ol>
-                    </div>
-                    
-                    <div class="help-card">
-                        <h3>🔑 Obter API Gratuita</h3>
-                        <p>Google AI Studio oferece cota gratuita:</p>
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="help-link">
-                            🔗 Obter Chave Gratuita
-                        </a>
-                    </div>
-                    
-                    <div class="help-card">
-                        <h3>🎤 Dicas de Uso</h3>
-                        <ul>
-                            <li>Fale claramente e pausadamente</li>
-                            <li>Use ambiente silencioso</li>
-                            <li>Aguarde a resposta completa</li>
-                            <li>Frases curtas funcionam melhor</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="help-card">
-                        <h3>🛠️ Solução de Problemas</h3>
-                        <details>
-                            <summary>Microfone não funciona</summary>
-                            <p>Verifique permissões do navegador e se outros apps estão usando o microfone.</p>
-                        </details>
-                        <details>
-                            <summary>API não responde</summary>
-                            <p>Verifique sua chave da API e conexão com internet.</p>
-                        </details>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botão de Ajuda Flutuante -->
-    <div class="floating-help">
-        <button id="floatingHelp" class="floating-btn" title="Ajuda rápida">
-            <span>❓</span>
-        </button>
-        <div id="helpTooltip" class="help-tooltip">
-            <strong>Ajuda Rápida:</strong><br>
-            • Clique 🎤 para falar<br>
-            • Configure ⚙️ para melhor experiência<br>
-            • Use 🆓 modo demo sem API
-        </div>
-    </div>
+    <footer>
+        <p>&copy; 2025 Deivisan. Projeto DeiviTech.</p>
+    </footer>
 
     <script src="script.js"></script>
 </body>

@@ -35,23 +35,46 @@
             <div class="control-group">
                 <label for="aiProvider">Provedor de IA:</label>
                 <select id="aiProvider">
-                    <option value="openai">OpenAI GPT (gratuito via API pública)</option>
-                    <option value="huggingface">Hugging Face (gratuito)</option>
-                    <option value="local">Respostas Locais (offline)</option>
-                    <option value="cohere">Cohere (gratuito)</option>
+                    <option value="google-web">Google (Web Speech API)</option>
+                    <option value="openai-web">OpenAI (via web gratuito)</option>
+                    <option value="local">Respostas Inteligentes Locais</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label for="voiceSelect">Voz:</label>
+                <label for="voiceEngine">Motor de Voz:</label>
+                <select id="voiceEngine">
+                    <option value="auto">Automático (detectar navegador)</option>
+                    <option value="chrome">Chrome/Chromium Voices</option>
+                    <option value="edge">Microsoft Edge Voices</option>
+                    <option value="system">Vozes do Sistema</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="voiceSelect">Voz Específica:</label>
                 <select id="voiceSelect"></select>
             </div>
 
             <div class="control-group">
                 <label for="speechRate">Velocidade da Fala:</label>
-                <input type="range" id="speechRate" min="0.5" max="2" step="0.1" value="1">
+                <input type="range" id="speechRate" min="0.7" max="1.5" step="0.1" value="1">
                 <span id="rateValue">1.0</span>
             </div>
+
+            <div class="control-group">
+                <label for="conversationMode">Modo de Conversação:</label>
+                <select id="conversationMode">
+                    <option value="continuous">Contínuo (mais natural)</option>
+                    <option value="click">Clique para falar</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="browser-info" id="browserInfo">
+            <h4>Informações do Navegador:</h4>
+            <p id="detectedBrowser">Detectando...</p>
+            <p id="voiceSupport">Verificando suporte a voz...</p>
         </div>
 
         <div class="suggestions">
@@ -61,6 +84,8 @@
                 <button class="suggestion-btn" data-text="Como funciona inteligência artificial?">Como funciona IA</button>
                 <button class="suggestion-btn" data-text="Quais são as linguagens de programação mais usadas?">Linguagens populares</button>
                 <button class="suggestion-btn" data-text="O que é computação em nuvem?">Cloud Computing</button>
+                <button class="suggestion-btn" data-text="Explique o que é machine learning">Machine Learning</button>
+                <button class="suggestion-btn" data-text="Como começar a programar?">Como programar</button>
             </div>
         </div>
     </div>
